@@ -1,0 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Stalinist+One&display=swap');
+@import "tailwindcss";
+
+#app {
+  background-image: url("/public/background4.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  background-attachment: fixed;
+  overflow-x: hidden;
+  width: 100vw;
+}
+
+p {
+  font-family: "Stalinist One", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+#title {
+  color: black;
+  -webkit-text-stroke: .5px #adff2f;
+}
