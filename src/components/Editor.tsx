@@ -98,7 +98,8 @@ const Editor = () => {
         setGallery,
         setUploading,
         applyFilterAndStamp,
-        canvasRef
+        canvasRef,
+        () => { setOpen(false); resetEditor(); }
     );
 
     const downloadImage = () => downloadImageAction(
@@ -219,13 +220,25 @@ const Editor = () => {
                                                 )}
                                                 {croppedImage && !cropMode && (
                                                     <div>
-                                                        <div className="mb-4">
+                                                        <div className="mb-4 relative">
                                                             <img
                                                                 ref={imageRef}
                                                                 src={croppedImage}
                                                                 alt="Cropped"
                                                                 className="w-full"
                                                                 style={{ filter: getFilterStyle(filter) }}
+                                                            />
+                                                            <img
+                                                                src="/parental_advisory.png"
+                                                                alt="Parental Advisory"
+                                                                className="absolute"
+                                                                style={{
+                                                                    right: '12px',
+                                                                    bottom: '12px',
+                                                                    width: '28%',
+                                                                    filter: 'none',
+                                                                    pointerEvents: 'none'
+                                                                }}
                                                             />
                                                         </div>
 

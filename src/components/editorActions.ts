@@ -1,5 +1,16 @@
 import type { RefObject, MutableRefObject } from 'react';
 import type React from 'react';
+
+// Canvas and stamp rendering constants
+const CANVAS_SIZE = 800;
+const STAMP_MAX_WIDTH_RATIO = 0.28; // 28% of canvas width
+const STAMP_PADDING_PX = 20;
+
+function get2DContext(canvasRef: RefObject<HTMLCanvasElement | null>): CanvasRenderingContext2D | null {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    return canvas.getContext('2d');
+}
 export const getFilterStyle = (filterName: string) => {
 	switch (filterName) {
 		case 'grayscale': return 'grayscale(100%)';
@@ -20,7 +31,8 @@ export function handleImageUpload(
 	setCropArea: (v: { x: number; y: number; size: number }) => void,
 	setImageDisplayInfo: (v: { originalWidth: number; originalHeight: number } | null) => void,
 ) {
-	const file = e.target.files?.[0];
+    const inputEl = e.target;
+    const file = inputEl.files?.[0];
 	if (!file) return;
 	const reader = new FileReader();
 	reader.onload = (event) => {
@@ -30,10 +42,15 @@ export function handleImageUpload(
 		};
 		img.src = event.target?.result as string;
 
-		setSelectedImage(event.target?.result as string);
+        // Force state change even if the same file (same data URL) is selected again
+        setSelectedImage(null);
+        setSelectedImage(event.target?.result as string);
 		setCroppedImage(null);
 		setCropMode(true);
 		setCropArea({ x: 0, y: 0, size: 200 });
+
+        // Allow selecting the same file to trigger onChange again
+        try { inputEl.value = ''; } catch { /* ignore */ }
 	};
 	reader.readAsDataURL(file);
 }
@@ -102,14 +119,14 @@ export function applyCrop(
     setFilter: (v: string) => void,
 ) {
 	if (!selectedImage || !cropContainerRef.current || !imageDisplayInfo) return;
-	const canvas = canvasRef.current;
-	if (!canvas) return;
-	const ctx = canvas.getContext('2d');
-	if (!ctx) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = get2DContext(canvasRef);
+    if (!ctx) return;
 	const img = new Image();
 	img.onload = () => {
-		canvas.width = 800;
-		canvas.height = 800;
+        canvas.width = CANVAS_SIZE;
+        canvas.height = CANVAS_SIZE;
 		const container = cropContainerRef.current;
 		if (!container) return;
 		const containerWidth = container.offsetWidth;
@@ -134,17 +151,17 @@ export function applyCrop(
 		const sourceX = Math.min(adjustedX * scale, imageDisplayInfo.originalWidth - cropArea.size * scale);
 		const sourceY = Math.min(adjustedY * scale, imageDisplayInfo.originalHeight - cropArea.size * scale);
 		const sourceSize = cropArea.size * scale;
-		ctx.clearRect(0, 0, 800, 800);
+        ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 		ctx.drawImage(
 			img,
 			Math.max(0, sourceX),
 			Math.max(0, sourceY),
 			Math.min(sourceSize, imageDisplayInfo.originalWidth - sourceX),
 			Math.min(sourceSize, imageDisplayInfo.originalHeight - sourceY),
-			0,
-			0,
-			800,
-			800
+            0,
+            0,
+            CANVAS_SIZE,
+            CANVAS_SIZE
 		);
 		setCroppedImage(canvas.toDataURL());
 		setCropMode(false);
@@ -160,35 +177,34 @@ export function applyFilterAndStamp(
     stampImgRef: MutableRefObject<HTMLImageElement | null>,
 ) {
 	if (!croppedImage) return;
-	const canvas = canvasRef.current;
-	if (!canvas) return;
-	const ctx = canvas.getContext('2d');
-	if (!ctx) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = get2DContext(canvasRef);
+    if (!ctx) return;
 	const img = new Image();
 	let stampImg: HTMLImageElement | null = stampImgRef.current;
 	let imagesLoaded = 0;
 	const checkAndDraw = () => {
 		imagesLoaded++;
 		if (imagesLoaded === 2) {
-			canvas.width = 800;
-			canvas.height = 800;
+            canvas.width = CANVAS_SIZE;
+            canvas.height = CANVAS_SIZE;
 			ctx.filter = getFilterStyle(filter);
-			ctx.drawImage(img, 0, 0, 800, 800);
+            ctx.drawImage(img, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
 			ctx.filter = 'none';
-			const padding = 20;
 			if (stampImg) {
-				const desiredMaxWidth = Math.floor(0.28 * canvas.width);
+                const desiredMaxWidth = Math.floor(STAMP_MAX_WIDTH_RATIO * canvas.width);
 				const naturalW = stampImg.naturalWidth || stampImg.width;
 				const naturalH = stampImg.naturalHeight || stampImg.height;
 				const aspect = naturalW && naturalH ? naturalW / naturalH : 1.6;
 				const finalWidth = Math.min(desiredMaxWidth, naturalW || desiredMaxWidth);
 				const finalHeight = Math.round(finalWidth / aspect);
-				(ctx as any).imageSmoothingEnabled = true;
-				(ctx as any).imageSmoothingQuality = 'high';
+                ctx.imageSmoothingEnabled = true;
+                (ctx as any).imageSmoothingQuality = 'high';
 				ctx.drawImage(
 					stampImg,
-					canvas.width - finalWidth - padding,
-					canvas.height - finalHeight - padding,
+                    canvas.width - finalWidth - STAMP_PADDING_PX,
+                    canvas.height - finalHeight - STAMP_PADDING_PX,
 					finalWidth,
 					finalHeight
 				);
@@ -215,6 +231,7 @@ export function uploadToSupabase(
     setUploading: (v: boolean) => void,
     applyFilterAndStampCb: () => void,
     canvasRef: RefObject<HTMLCanvasElement | null>,
+    onSuccess?: () => void,
 ) {
     if (!croppedImage) return;
     setUploading(true);
@@ -223,6 +240,7 @@ export function uploadToSupabase(
         const finalDataUrl = canvasRef.current?.toDataURL() || croppedImage;
         setGallery([...gallery, finalDataUrl]);
         setUploading(false);
+        if (onSuccess) onSuccess();
         alert('Album cover uploaded successfully!');
     }, 1500);
 }
