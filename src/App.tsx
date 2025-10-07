@@ -1,20 +1,42 @@
 import { useState, useEffect } from 'react';
 import { useGalleryStore } from './store';
 import Editor from './components/Editor';
+import supabase from '../utils/supabase';
 
 const AlbumCoverCreator = () => {
   const { gallery, setGallery } = useGalleryStore();
 
-  // Load gallery on mount (mock data for demo)
+  // Load gallery on mount
   useEffect(() => {
-    // In production, fetch from Supabase here
-    const mockGallery = [
-      'https://picsum.photos/400/400?random=1',
-      'https://picsum.photos/400/400?random=2',
-      'https://picsum.photos/400/400?random=3',
-    ];
-    setGallery(mockGallery);
-  }, []);
+    async function loadImages() {
+      // List up to 10 files from the bucket root; use supported sort column
+      const { data, error } = await supabase
+        .storage
+        .from("public_album_covers")
+        .list("", { limit: 20, sortBy: { column: "created_at", order: "desc" } })
+
+      if (error) {
+        console.error("Error listing images:", error)
+        return
+      }
+
+      // Convert each file to a public URL
+      const urls = (data || [])
+        // Ignore folder placeholders
+        .filter(file => !file.name.endsWith('/'))
+        .map(file => {
+        const { data: publicUrlData } = supabase
+          .storage
+          .from("public_album_covers")
+          .getPublicUrl(file.name)
+        return publicUrlData.publicUrl
+        })
+
+      setGallery(urls)
+    }
+
+    loadImages()
+  }, [])
 
 
   return (
@@ -24,12 +46,11 @@ const AlbumCoverCreator = () => {
           <p className="text-6xl text-center" id="title">ANYTHING CAN BE AN ALBUM COVER</p>
         </div>
 
-
-
-
         {/* Gallery Section */}
         <div className="">
-          {gallery.length > 0 ? (
+          {gallery.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">Loading...</p>
+          ) : gallery.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               <Editor />
               {gallery.map((img, index) => (

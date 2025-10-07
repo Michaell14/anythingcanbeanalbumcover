@@ -1,5 +1,6 @@
 import type { RefObject, MutableRefObject } from 'react';
 import type React from 'react';
+import supabase from '../../utils/supabase';
 
 // Canvas and stamp rendering constants
 const CANVAS_SIZE = 800;
@@ -175,12 +176,14 @@ export function applyFilterAndStamp(
     filter: string,
     canvasRef: RefObject<HTMLCanvasElement | null>,
     stampImgRef: MutableRefObject<HTMLImageElement | null>,
-) {
-	if (!croppedImage) return;
+) : Promise<void> {
+    if (!croppedImage) return Promise.resolve();
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) return Promise.resolve();
     const ctx = get2DContext(canvasRef);
-    if (!ctx) return;
+    if (!ctx) return Promise.resolve();
+    let resolveFn: () => void;
+    const done = new Promise<void>((resolve) => { resolveFn = resolve; });
 	const img = new Image();
 	let stampImg: HTMLImageElement | null = stampImgRef.current;
 	let imagesLoaded = 0;
@@ -210,6 +213,7 @@ export function applyFilterAndStamp(
 				);
 			}
 				// Do not overwrite the base cropped image; callers can read from canvas
+            resolveFn!();
 		}
 	};
 	img.onload = checkAndDraw;
@@ -218,46 +222,70 @@ export function applyFilterAndStamp(
 		imagesLoaded++;
 	} else {
 		stampImg = new Image();
-		stampImg.onload = () => { checkAndDraw(); };
+        stampImg.onload = () => { checkAndDraw(); };
+        stampImg.onerror = () => { checkAndDraw(); };
 		stampImg.src = '/parental_advisory.png';
 		stampImgRef.current = stampImg;
 	}
+    return done;
 }
 
-export function uploadToSupabase(
+export async function uploadToSupabase(
     croppedImage: string | null,
     gallery: string[],
     setGallery: (v: string[]) => void,
     setUploading: (v: boolean) => void,
-    applyFilterAndStampCb: () => void,
+    applyFilterAndStampCb: () => Promise<void> | void,
     canvasRef: RefObject<HTMLCanvasElement | null>,
     onSuccess?: () => void,
 ) {
     if (!croppedImage) return;
     setUploading(true);
-    applyFilterAndStampCb();
-    setTimeout(() => {
-        const finalDataUrl = canvasRef.current?.toDataURL() || croppedImage;
-        setGallery([...gallery, finalDataUrl]);
+    // Ensure canvas contains filtered image + stamp
+    await Promise.resolve(applyFilterAndStampCb());
+    const canvas = canvasRef.current;
+    if (!canvas) {
+        setUploading(false);
+        alert('Could not access canvas to upload.');
+        return;
+    }
+    try {
+        const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve as BlobCallback, 'image/png'));
+        if (!blob) throw new Error('Failed to create image blob');
+        const fileName = `album_${Date.now()}.png`;
+        const { error: uploadError } = await supabase
+            .storage
+            .from('public_album_covers')
+            .upload(fileName, blob, { contentType: 'image/png', upsert: false });
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase
+            .storage
+            .from('public_album_covers')
+            .getPublicUrl(fileName);
+        const publicUrl = publicUrlData.publicUrl;
+        setGallery([...gallery, publicUrl]);
         setUploading(false);
         if (onSuccess) onSuccess();
         alert('Album cover uploaded successfully!');
-    }, 1500);
+    } catch (err) {
+        console.error(err);
+        setUploading(false);
+        alert('Upload failed. Please try again.');
+    }
 }
 
 export function downloadImage(
 	croppedImage: string | null,
-	applyFilterAndStampCb: () => void,
+	applyFilterAndStampCb: () => Promise<void> | void,
 	canvasRef: React.RefObject<HTMLCanvasElement>,
 ) {
 	if (!croppedImage) return;
-	applyFilterAndStampCb();
-	setTimeout(() => {
+	Promise.resolve(applyFilterAndStampCb()).then(() => {
 		const link = document.createElement('a');
 		link.download = 'album-cover.png';
 		link.href = canvasRef.current?.toDataURL() || '';
 		link.click();
-	}, 100);
+	});
 }
 
 export function resetEditor(
