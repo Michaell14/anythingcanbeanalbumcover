@@ -7,8 +7,41 @@ const CANVAS_SIZE = 800;
 const STAMP_MAX_WIDTH_RATIO = 0.28; // 28% of canvas width
 const STAMP_PADDING_PX = 20;
 const CROP_MIN_SIZE = 100;
-const CROP_MAX_SIZE = 300;
 const CROP_DEFAULT_SIZE = 200;
+
+// Calculate initial crop area position and size based on image dimensions
+function calculateInitialCropArea(
+	imageDisplayInfo: { originalWidth: number; originalHeight: number },
+	containerWidth: number,
+	containerHeight: number
+): { x: number; y: number; size: number } {
+	const imgAspectRatio = imageDisplayInfo.originalWidth / imageDisplayInfo.originalHeight;
+	const containerAspectRatio = containerWidth / containerHeight;
+	
+	// Calculate the actual image display dimensions and offsets (same logic as in applyCrop)
+	let displayWidth: number, displayHeight: number, offsetX: number, offsetY: number;
+	if (imgAspectRatio > containerAspectRatio) {
+		displayWidth = containerWidth;
+		displayHeight = containerWidth / imgAspectRatio;
+		offsetX = 0;
+		offsetY = (containerHeight - displayHeight) / 2;
+	} else {
+		displayHeight = containerHeight;
+		displayWidth = containerHeight * imgAspectRatio;
+		offsetX = (containerWidth - displayWidth) / 2;
+		offsetY = 0;
+	}
+	
+	// Calculate the maximum possible crop size within the image bounds
+	const maxCropSize = Math.min(displayWidth, displayHeight);
+	const cropSize = Math.min(CROP_DEFAULT_SIZE, maxCropSize);
+	
+	// Center the crop area within the image display area
+	const x = offsetX + (displayWidth - cropSize) / 2;
+	const y = offsetY + (displayHeight - cropSize) / 2;
+	
+	return { x, y, size: cropSize };
+}
 
 function get2DContext(canvasRef: RefObject<HTMLCanvasElement | null>): CanvasRenderingContext2D | null {
     const canvas = canvasRef.current;
@@ -34,6 +67,7 @@ export function handleImageUpload(
 	setCropMode: (v: boolean) => void,
 	setCropArea: (v: { x: number; y: number; size: number }) => void,
 	setImageDisplayInfo: (v: { originalWidth: number; originalHeight: number } | null) => void,
+	cropContainerRef: RefObject<HTMLDivElement | null>,
 ) {
     const inputEl = e.target;
     const file = inputEl.files?.[0];
@@ -42,7 +76,20 @@ export function handleImageUpload(
 	reader.onload = (event) => {
 		const img = new Image();
 		img.onload = () => {
-			setImageDisplayInfo({ originalWidth: img.width, originalHeight: img.height });
+			const imageInfo = { originalWidth: img.width, originalHeight: img.height };
+			setImageDisplayInfo(imageInfo);
+			
+			// Calculate proper initial crop area based on image dimensions
+			const container = cropContainerRef.current;
+			if (container) {
+				const containerWidth = container.offsetWidth;
+				const containerHeight = container.offsetHeight;
+				const initialCropArea = calculateInitialCropArea(imageInfo, containerWidth, containerHeight);
+				setCropArea(initialCropArea);
+			} else {
+				// Fallback if container not available yet
+				setCropArea({ x: 0, y: 0, size: CROP_DEFAULT_SIZE });
+			}
 		};
 		img.src = event.target?.result as string;
 
@@ -51,7 +98,6 @@ export function handleImageUpload(
         setSelectedImage(event.target?.result as string);
 		setCroppedImage(null);
 		setCropMode(true);
-		setCropArea({ x: 0, y: 0, size: CROP_DEFAULT_SIZE });
 
         // Allow selecting the same file to trigger onChange again
         try { inputEl.value = ''; } catch { /* ignore */ }
@@ -85,15 +131,39 @@ export function handleCropMove(
     dragStart: { x: number; y: number },
     cropContainerRef: RefObject<HTMLDivElement | null>,
     setCropArea: (v: { x: number; y: number; size: number }) => void,
+    imageDisplayInfo: { originalWidth: number; originalHeight: number } | null,
 ) {
-	if (!isDragging || !cropMode) return;
+	if (!isDragging || !cropMode || !imageDisplayInfo) return;
 	e.preventDefault();
 	const rect = cropContainerRef.current?.getBoundingClientRect();
 	if (!rect) return;
+	
+	const containerWidth = rect.width;
+	const containerHeight = rect.height;
+	const imgAspectRatio = imageDisplayInfo.originalWidth / imageDisplayInfo.originalHeight;
+	const containerAspectRatio = containerWidth / containerHeight;
+	
+	// Calculate the actual image display dimensions and offsets
+	let displayWidth: number, displayHeight: number, offsetX: number, offsetY: number;
+	if (imgAspectRatio > containerAspectRatio) {
+		displayWidth = containerWidth;
+		displayHeight = containerWidth / imgAspectRatio;
+		offsetX = 0;
+		offsetY = (containerHeight - displayHeight) / 2;
+	} else {
+		displayHeight = containerHeight;
+		displayWidth = containerHeight * imgAspectRatio;
+		offsetX = (containerWidth - displayWidth) / 2;
+		offsetY = 0;
+	}
+	
 	const x = ('clientX' in e ? e.clientX : e.touches[0].clientX) - rect.left;
 	const y = ('clientY' in e ? e.clientY : e.touches[0].clientY) - rect.top;
-	const newX = Math.max(0, Math.min(x - dragStart.x, rect.width - cropArea.size));
-	const newY = Math.max(0, Math.min(y - dragStart.y, rect.height - cropArea.size));
+	
+	// Constrain movement within the actual image display area
+	const newX = Math.max(offsetX, Math.min(x - dragStart.x, offsetX + displayWidth - cropArea.size));
+	const newY = Math.max(offsetY, Math.min(y - dragStart.y, offsetY + displayHeight - cropArea.size));
+	
 	setCropArea({ ...cropArea, x: newX, y: newY });
 }
 
@@ -107,8 +177,31 @@ export function handleCropResize(
 	delta: number,
 	cropArea: { x: number; y: number; size: number },
 	setCropArea: (v: { x: number; y: number; size: number }) => void,
+	cropContainerRef: RefObject<HTMLDivElement | null>,
+	imageDisplayInfo: { originalWidth: number; originalHeight: number } | null,
 ) {
-	const newSize = Math.max(CROP_MIN_SIZE, Math.min(cropArea.size + delta, CROP_MAX_SIZE));
+	const container = cropContainerRef.current;
+	if (!container || !imageDisplayInfo) return;
+	
+	const containerWidth = container.offsetWidth;
+	const containerHeight = container.offsetHeight;
+	const imgAspectRatio = imageDisplayInfo.originalWidth / imageDisplayInfo.originalHeight;
+	const containerAspectRatio = containerWidth / containerHeight;
+	
+	// Calculate the actual image display dimensions (same logic as in applyCrop)
+	let displayWidth: number, displayHeight: number;
+	if (imgAspectRatio > containerAspectRatio) {
+		displayWidth = containerWidth;
+		displayHeight = containerWidth / imgAspectRatio;
+	} else {
+		displayHeight = containerHeight;
+		displayWidth = containerHeight * imgAspectRatio;
+	}
+	
+	// The maximum crop size should be the smaller of the display dimensions
+	const maxSize = Math.min(displayWidth, displayHeight);
+	
+	const newSize = Math.max(CROP_MIN_SIZE, Math.min(cropArea.size + delta, maxSize));
 	setCropArea({ ...cropArea, size: newSize });
 }
 

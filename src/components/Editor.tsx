@@ -44,7 +44,8 @@ const Editor = () => {
         setCroppedImage,
         setCropMode,
         setCropArea,
-        setImageDisplayInfo
+        setImageDisplayInfo,
+        cropContainerRef
     );
 
 
@@ -64,12 +65,13 @@ const Editor = () => {
         cropArea,
         dragStart,
         cropContainerRef,
-        setCropArea
+        setCropArea,
+        imageDisplayInfo
     );
 
     const handleCropEnd = () => handleCropEndAction(setIsDragging);
 
-    const handleCropResize = (delta: number) => handleCropResizeAction(delta, cropArea, setCropArea);
+    const handleCropResize = (delta: number) => handleCropResizeAction(delta, cropArea, setCropArea, cropContainerRef, imageDisplayInfo);
 
     const applyCrop = () => applyCropAction(
         selectedImage,

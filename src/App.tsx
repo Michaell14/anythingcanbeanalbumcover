@@ -9,17 +9,19 @@ const SCROLL_THRESHOLD = 1000;
 const GRID_CLASSES = "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4";
 
 const AlbumCoverCreator = () => {
-  const {
-    gallery,
-    addToGallery,
+  const { 
+    gallery, 
+    addToGallery, 
     resetGallery,
-    offset,
-    setOffset,
-    hasMore,
-    setHasMore,
-    loading,
-    setLoading
+    offset, 
+    setOffset, 
+    hasMore, 
+    setHasMore, 
+    loading, 
+    setLoading 
   } = useGalleryStore();
+
+
 
   // Load more images function
   const loadMoreImages = useCallback(async () => {

@@ -2,13 +2,16 @@
 @import "tailwindcss";
 
 #app {
-  background-image: url("/public/background4.png");
+  background-color: #1a1a1a;
+  background-image: url("/background4.png");
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover;
   background-attachment: fixed;
   overflow-x: hidden;
   width: 100vw;
+  min-height: 100vh;
+  position: relative;
 }
 
 p {
