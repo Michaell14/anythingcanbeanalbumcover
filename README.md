@@ -1,4 +1,4 @@
-# 🎵 Anything Can Be An Album Cover
+# Anything Can Be An Album Cover
 
 A modern, interactive web application that transforms any image into a professional-looking album cover with built-in editing tools, filters, and automatic parental advisory stamping.
 
@@ -7,93 +7,20 @@ A modern, interactive web application that transforms any image into a professio
 ![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue)
 ![Vite](https://img.shields.io/badge/Vite-5+-purple)
 
-## ✨ Features
+Upload any photo, crop the photo, and add a filter. The stamp is automatically added, and the result is saved to the public gallery.
 
-### 🖼️ **Image Processing**
-- **Drag & Drop Upload** - Simply click or drag images to get started
-- **Smart Cropping** - Interactive square crop tool with resize controls
-- **High-Quality Output** - 800x800px canvas for crisp, professional results
-
-### 🎨 **Creative Tools**
-- **7 Built-in Filters** - Grayscale, Sepia, Vintage, Cold, Warm, High-Contrast, and Original
-- **Auto Stamping** - Automatic "Parental Advisory" stamp placement
-- **Real-time Preview** - See changes instantly as you edit
-
-### 📱 **Modern UX**
-- **Infinite Scroll Gallery** - Browse through all created album covers seamlessly
-- **Responsive Design** - Works perfectly on desktop, tablet, and mobile
-- **Smooth Animations** - Polished transitions and hover effects
-- **Loading States** - Visual feedback during image processing
-
-### ☁️ **Cloud Storage**
-- **Supabase Integration** - Automatic cloud storage and retrieval
-- **Public Gallery** - Share your creations with the world
-- **Download Support** - Save your album covers locally
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-- Supabase account (for cloud storage)
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/anythingcanbeanalbumcover.git
-   cd anythingcanbeanalbumcover
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env.local
-   ```
-   
-   Add your Supabase credentials:
-   ```env
-   VITE_SUPABASE_URL=your_supabase_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
-
-4. **Start the development server**
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   ```
-
-5. **Open your browser**
-   Navigate to `http://localhost:5173`
-
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### **Frontend**
-- **React 18** - Modern React with hooks and functional components
-- **TypeScript** - Type-safe development
-- **Vite** - Lightning-fast build tool and dev server
-- **Tailwind CSS** - Utility-first CSS framework
-- **Headless UI** - Accessible UI components
-
-### **State Management**
-- **Zustand** - Lightweight state management
-- **React Hooks** - Built-in state and effect management
+- **React 18**
+- **TypeScript**
+- **Vite**
+- **Tailwind CSS**
+- **Zustand**
+- **FileReader API** - Local file handling
 
 ### **Backend & Storage**
-- **Supabase** - Backend-as-a-Service for storage and database
 - **Supabase Storage** - Cloud file storage for images
-
-### **Image Processing**
-- **HTML5 Canvas** - Client-side image manipulation
-- **FileReader API** - Local file handling
-- **Blob API** - Image data processing
 
 ## 📁 Project Structure
 
@@ -109,100 +36,5 @@ src/
 └── main.tsx              # Application entry point
 ```
 
-## 🎯 How It Works
-
-### **1. Image Upload**
-- Users click the "Create an album cover" square
-- File input accepts common image formats (JPG, PNG, WebP, etc.)
-- Image is processed and displayed in the editor modal
-
-### **2. Cropping Interface**
-- Interactive square crop tool appears over the image
-- Users can drag to reposition and resize the crop area
-- Real-time preview shows exactly what will be cropped
-
-### **3. Filter Application**
-- 7 different filter options available
-- Filters are applied in real-time to the cropped image
-- Users can switch between filters instantly
-
-### **4. Auto-Stamping**
-- "Parental Advisory" stamp is automatically added
-- Positioned in the bottom-right corner at 28% of canvas width
-- Maintains proper aspect ratio and quality
-
-### **5. Save & Share**
-- Processed images are uploaded to Supabase storage
-- Automatically added to the public gallery
-- Users can download their creations locally
-
-## 🔧 Configuration
-
-### **Supabase Setup**
-1. Create a new Supabase project
-2. Set up a storage bucket named `public_album_covers`
-3. Configure bucket policies for public read access
-4. Add your credentials to environment variables
-
-### **Customization**
-- **Canvas Size**: Modify `CANVAS_SIZE` in `editorActions.ts`
-- **Stamp Size**: Adjust `STAMP_MAX_WIDTH_RATIO` for different stamp sizes
-- **Filters**: Add new filters in the `getFilterStyle` function
-- **Styling**: Customize colors and layout in Tailwind classes
-
-## 🚀 Deployment
-
-### **Vercel (Recommended)**
-1. Connect your GitHub repository to Vercel
-2. Add environment variables in Vercel dashboard
-3. Deploy automatically on every push
-
-### **Netlify**
-1. Build the project: `npm run build`
-2. Deploy the `dist` folder to Netlify
-3. Add environment variables in Netlify dashboard
-
-### **Other Platforms**
-- Any static hosting service that supports SPA routing
-- Ensure environment variables are properly configured
-
-## 🤝 Contributing
-
-We welcome contributions! Here's how you can help:
-
-1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Commit your changes**: `git commit -m 'Add amazing feature'`
-4. **Push to the branch**: `git push origin feature/amazing-feature`
-5. **Open a Pull Request**
-
-### **Development Guidelines**
-- Follow TypeScript best practices
-- Use meaningful commit messages
-- Test your changes thoroughly
-- Update documentation as needed
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Supabase** - For providing excellent backend services
-- **Headless UI** - For accessible UI components
-- **Tailwind CSS** - For the utility-first CSS framework
-- **React Community** - For the amazing ecosystem
-
-## 📞 Support
-
-If you encounter any issues or have questions:
-
-1. Check the [Issues](https://github.com/yourusername/anythingcanbeanalbumcover/issues) page
-2. Create a new issue with detailed information
-3. Join our community discussions
 
 ---
-
-**Made with ❤️ for music lovers and creative minds**
-
-*Transform any moment into album art - because anything can be an album cover!*
