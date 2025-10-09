@@ -17,7 +17,7 @@ p {
   font-style: normal;
 }
 
-#title {
+.title {
   color: black;
   -webkit-text-stroke: .5px #adff2f;
 }

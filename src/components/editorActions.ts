@@ -6,6 +6,9 @@ import supabase from '../../utils/supabase';
 const CANVAS_SIZE = 800;
 const STAMP_MAX_WIDTH_RATIO = 0.28; // 28% of canvas width
 const STAMP_PADDING_PX = 20;
+const CROP_MIN_SIZE = 100;
+const CROP_MAX_SIZE = 300;
+const CROP_DEFAULT_SIZE = 200;
 
 function get2DContext(canvasRef: RefObject<HTMLCanvasElement | null>): CanvasRenderingContext2D | null {
     const canvas = canvasRef.current;
@@ -48,7 +51,7 @@ export function handleImageUpload(
         setSelectedImage(event.target?.result as string);
 		setCroppedImage(null);
 		setCropMode(true);
-		setCropArea({ x: 0, y: 0, size: 200 });
+		setCropArea({ x: 0, y: 0, size: CROP_DEFAULT_SIZE });
 
         // Allow selecting the same file to trigger onChange again
         try { inputEl.value = ''; } catch { /* ignore */ }
@@ -105,7 +108,7 @@ export function handleCropResize(
 	cropArea: { x: number; y: number; size: number },
 	setCropArea: (v: { x: number; y: number; size: number }) => void,
 ) {
-	const newSize = Math.max(100, Math.min(cropArea.size + delta, 300));
+	const newSize = Math.max(CROP_MIN_SIZE, Math.min(cropArea.size + delta, CROP_MAX_SIZE));
 	setCropArea({ ...cropArea, size: newSize });
 }
 
@@ -232,8 +235,7 @@ export function applyFilterAndStamp(
 
 export async function uploadToSupabase(
     croppedImage: string | null,
-    gallery: string[],
-    setGallery: (v: string[]) => void,
+    addToGallery: (v: string[]) => void,
     setUploading: (v: boolean) => void,
     applyFilterAndStampCb: () => Promise<void> | void,
     canvasRef: RefObject<HTMLCanvasElement | null>,
@@ -263,7 +265,7 @@ export async function uploadToSupabase(
             .from('public_album_covers')
             .getPublicUrl(fileName);
         const publicUrl = publicUrlData.publicUrl;
-        setGallery([...gallery, publicUrl]);
+        addToGallery([publicUrl]);
         setUploading(false);
         if (onSuccess) onSuccess();
         alert('Album cover uploaded successfully!');
@@ -300,7 +302,7 @@ export function resetEditor(
 	setCroppedImage(null);
 	setFilter('');
 	setCropMode(false);
-	setCropArea({ x: 0, y: 0, size: 200 });
+	setCropArea({ x: 0, y: 0, size: CROP_DEFAULT_SIZE });
 	setImageDisplayInfo(null);
 }
 
