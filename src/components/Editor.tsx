@@ -135,7 +135,7 @@ const Editor = () => {
     }, [selectedImage, setOpen]);
 
     return (
-        <div className="bg-black/50 backdrop-blur-md p-6 border border-purple-500/20">
+        <div className="bg-black/50 backdrop-blur-md p-6">
             <Dialog open={open} onClose={setOpen} className="relative z-10">
                 <DialogBackdrop
                     transition
@@ -148,28 +148,25 @@ const Editor = () => {
                             transition
                             className="relative transform overflow-hidden text-left shadow-xl transition-all data-closed:translate-y-4 data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in sm:my-8 sm:w-full sm:max-w-lg data-closed:sm:translate-y-0 data-closed:sm:scale-95"
                         >
-                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                            <div className="bg-[#121212] px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                                 <div className="sm:flex sm:items-start">
                                     <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                                        <DialogTitle as="h3" className="text-base font-semibold text-gray-900">
-                                            <p>Album Cover Editor</p>
+                                        <DialogTitle as="h3" className="text-base font-semibold text-gray-300">
+                                            <p className="text-2xl">Editor</p>
                                         </DialogTitle>
                                         {selectedImage && cropMode && (
                                             <div>
                                                 <div className="mb-4 flex items-center justify-between">
-                                                    <h3 className="text-lg font-medium flex items-center gap-2">
-                                                        Crop to Square
-                                                    </h3>
                                                     <div className="flex gap-2">
                                                         <button
                                                             onClick={() => handleCropResize(20)}
-                                                            className="bg-purple-600/50 hover:bg-purple-600 px-3 py-1 text-sm"
+                                                            className="bg-gray-300 px-3 py-1 text-sm hover:cursor-pointer"
                                                         >
                                                             + Size
                                                         </button>
                                                         <button
                                                             onClick={() => handleCropResize(-20)}
-                                                            className="bg-purple-600/50 hover:bg-purple-600 px-3 py-1 text-sm"
+                                                            className="bg-gray-300 px-3 py-1 text-sm hover:cursor-pointer"
                                                         >
                                                             - Size
                                                         </button>
@@ -209,7 +206,7 @@ const Editor = () => {
 
                                                 <button
                                                     onClick={applyCrop}
-                                                    className="w-full bg-purple-600 hover:bg-purple-700 py-2 transition-colors"
+                                                    className="w-full bg-gray-300 hover:bg-gray-400 py-2 hover:cursor-pointer transition-colors"
                                                 >
                                                     Apply Crop
                                                 </button>
@@ -240,15 +237,15 @@ const Editor = () => {
                                                 </div>
 
                                                 <div className="mb-4">
-                                                    <p className="text-lg font-medium mb-2">Filters</p>
+                                                    <p className="text-lg font-medium mb-2 text-gray-300">Filters</p>
                                                     <div className="grid grid-cols-3 gap-2">
                                                         {['none', 'grayscale', 'sepia', 'vintage', 'cold', 'warm', 'high-contrast'].map((f) => (
                                                             <button
                                                                 key={f}
                                                                 onClick={() => setFilter(f)}
-                                                                className={`py-2 px-3 capitalize text-sm transition-colors ${filter === f
-                                                                    ? 'bg-purple-600'
-                                                                    : 'bg-purple-600/30 hover:bg-purple-600/50'
+                                                                className={`py-2 px-3 capitalize text-sm transition-colors hover:cursor-pointer ${filter === f
+                                                                    ? 'bg-gray-300'
+                                                                    : 'bg-gray-300/60 hover:bg-gray-300/50'
                                                                     }`}
                                                             >
                                                                 {f === 'none' ? 'Original' : f.replace('-', ' ')}
@@ -260,7 +257,7 @@ const Editor = () => {
                                                 <div className="flex gap-2">
                                                     <button
                                                         onClick={downloadImage}
-                                                        className="flex-1 bg-green-600 hover:bg-green-700 py-2 transition-colors flex items-center justify-center gap-2"
+                                                        className="flex-1 bg-green-600 hover:bg-green-700 py-2 hover:cursor-pointer transition-colors flex items-center justify-center gap-2"
                                                     >
                                                         <Download className="w-4 h-4" />
                                                         Download
@@ -268,10 +265,10 @@ const Editor = () => {
                                                     <button
                                                         onClick={uploadToSupabase}
                                                         disabled={uploading}
-                                                        className="flex-1 bg-purple-600 hover:bg-purple-700 py-2 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                                        className="flex-1 bg-purple-600 hover:bg-purple-700 py-2 hover:cursor-pointer transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                                                     >
                                                         <Save className="w-4 h-4" />
-                                                        {uploading ? 'Uploading...' : 'Save to Gallery'}
+                                                        {uploading ? 'Uploading...' : 'Upload to Gallery'}
                                                     </button>
                                                 </div>
                                             </div>
@@ -279,12 +276,12 @@ const Editor = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                            <div className="bg-[#121212] px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
                                 <button
                                     type="button"
                                     data-autofocus
                                     onClick={() => { setOpen(false); resetEditor() }}
-                                    className="inline-flex w-full justify-center bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-red-500 sm:ml-3 sm:w-auto"
+                                    className="inline-flex w-full justify-center bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-red-500 hover:cursor-pointer sm:ml-3 sm:w-auto"
                                 >
                                     Close
                                 </button>
@@ -295,7 +292,7 @@ const Editor = () => {
             </Dialog>
 
             <div onClick={() => fileInputRef.current?.click()} className="border-2 aspect-square border-white/50 border-dashed text-center flex items-center justify-center hover:cursor-pointer">
-                <p className="text-gray-300">Create an album cover</p>
+                <p className="text-gray-300 text-2xl">Create</p>
                 <input
                     ref={fileInputRef}
                     type="file"

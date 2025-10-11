@@ -1,26 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Stalinist+One&display=swap');
+
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 @import "tailwindcss";
 
 #app {
-  background-color: #1a1a1a;
-  background-image: url("/background4.png");
-  background-repeat: no-repeat;
-  background-position: center center;
-  background-size: cover;
-  background-attachment: fixed;
+  background-color: #121212;
   overflow-x: hidden;
   width: 100vw;
   min-height: 100vh;
   position: relative;
 }
 
-p {
-  font-family: "Stalinist One", sans-serif;
-  font-weight: 400;
-  font-style: normal;
-}
-
-.title {
-  color: black;
-  -webkit-text-stroke: .5px #adff2f;
-}
+p, button {
+    font-family: "Bebas Neue", sans-serif;
+    font-weight: 400;
+    font-style: normal;
+  }
