@@ -8,17 +8,18 @@ const STAMP_MAX_WIDTH_RATIO = 0.28; // 28% of canvas width
 const STAMP_PADDING_PX = 20;
 const CROP_MIN_SIZE = 100;
 const CROP_DEFAULT_SIZE = 200;
+const WEBP_QUALITY = 0.85; // 85% quality for good balance
+const MAX_UPLOAD_SIZE = 1024 * 1024 * 2; // 2MB max size
 
-// Calculate initial crop area position and size based on image dimensions
-function calculateInitialCropArea(
+// Helper function to calculate display dimensions (DRY - used in multiple places)
+function calculateDisplayDimensions(
 	imageDisplayInfo: { originalWidth: number; originalHeight: number },
 	containerWidth: number,
 	containerHeight: number
-): { x: number; y: number; size: number } {
+): { displayWidth: number; displayHeight: number; offsetX: number; offsetY: number } {
 	const imgAspectRatio = imageDisplayInfo.originalWidth / imageDisplayInfo.originalHeight;
 	const containerAspectRatio = containerWidth / containerHeight;
-	
-	// Calculate the actual image display dimensions and offsets (same logic as in applyCrop)
+
 	let displayWidth: number, displayHeight: number, offsetX: number, offsetY: number;
 	if (imgAspectRatio > containerAspectRatio) {
 		displayWidth = containerWidth;
@@ -31,15 +32,30 @@ function calculateInitialCropArea(
 		offsetX = (containerWidth - displayWidth) / 2;
 		offsetY = 0;
 	}
-	
+
+	return { displayWidth, displayHeight, offsetX, offsetY };
+}
+
+// Calculate initial crop area position and size based on image dimensions
+function calculateInitialCropArea(
+	imageDisplayInfo: { originalWidth: number; originalHeight: number },
+	containerWidth: number,
+	containerHeight: number
+): { x: number; y: number; size: number } {
+	const { displayWidth, displayHeight, offsetX, offsetY } = calculateDisplayDimensions(
+		imageDisplayInfo,
+		containerWidth,
+		containerHeight
+	);
+
 	// Calculate the maximum possible crop size within the image bounds
 	const maxCropSize = Math.min(displayWidth, displayHeight);
 	const cropSize = Math.min(CROP_DEFAULT_SIZE, maxCropSize);
-	
+
 	// Center the crop area within the image display area
 	const x = offsetX + (displayWidth - cropSize) / 2;
 	const y = offsetY + (displayHeight - cropSize) / 2;
-	
+
 	return { x, y, size: cropSize };
 }
 
@@ -68,10 +84,20 @@ export function handleImageUpload(
 	setCropArea: (v: { x: number; y: number; size: number }) => void,
 	setImageDisplayInfo: (v: { originalWidth: number; originalHeight: number } | null) => void,
 	cropContainerRef: RefObject<HTMLDivElement | null>,
+	showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void,
 ) {
     const inputEl = e.target;
     const file = inputEl.files?.[0];
 	if (!file) return;
+
+	// Block HEIC files
+	const fileName = file.name.toLowerCase();
+	const fileType = file.type.toLowerCase();
+	if (fileName.endsWith('.heic') || fileName.endsWith('.heif') || fileType.includes('heic') || fileType.includes('heif')) {
+		showToast('HEIC/HEIF files are not supported. Please use PNG, JPEG, GIF, or WebP format.', 'error');
+		try { inputEl.value = ''; } catch { /* ignore */ }
+		return;
+	}
 	const reader = new FileReader();
 	reader.onload = (event) => {
 		const img = new Image();
@@ -126,51 +152,78 @@ export function handleCropStart(
 export function handleCropMove(
     e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>,
     isDragging: boolean,
+    isResizing: boolean,
     cropMode: boolean,
     cropArea: { x: number; y: number; size: number },
     dragStart: { x: number; y: number },
+    resizeStart: { size: number; mouseX: number; mouseY: number },
     cropContainerRef: RefObject<HTMLDivElement | null>,
     setCropArea: (v: { x: number; y: number; size: number }) => void,
     imageDisplayInfo: { originalWidth: number; originalHeight: number } | null,
 ) {
-	if (!isDragging || !cropMode || !imageDisplayInfo) return;
+	if ((!isDragging && !isResizing) || !cropMode || !imageDisplayInfo) return;
 	e.preventDefault();
 	const rect = cropContainerRef.current?.getBoundingClientRect();
 	if (!rect) return;
-	
-	const containerWidth = rect.width;
-	const containerHeight = rect.height;
-	const imgAspectRatio = imageDisplayInfo.originalWidth / imageDisplayInfo.originalHeight;
-	const containerAspectRatio = containerWidth / containerHeight;
-	
-	// Calculate the actual image display dimensions and offsets
-	let displayWidth: number, displayHeight: number, offsetX: number, offsetY: number;
-	if (imgAspectRatio > containerAspectRatio) {
-		displayWidth = containerWidth;
-		displayHeight = containerWidth / imgAspectRatio;
-		offsetX = 0;
-		offsetY = (containerHeight - displayHeight) / 2;
-	} else {
-		displayHeight = containerHeight;
-		displayWidth = containerHeight * imgAspectRatio;
-		offsetX = (containerWidth - displayWidth) / 2;
-		offsetY = 0;
+
+	// Use helper function instead of repeating calculation
+	const { displayWidth, displayHeight, offsetX, offsetY } = calculateDisplayDimensions(
+		imageDisplayInfo,
+		rect.width,
+		rect.height
+	);
+
+	const mouseX = ('clientX' in e ? e.clientX : e.touches[0].clientX) - rect.left;
+	const mouseY = ('clientY' in e ? e.clientY : e.touches[0].clientY) - rect.top;
+
+	if (isResizing) {
+		// Calculate new size based on diagonal drag distance
+		const deltaX = mouseX - resizeStart.mouseX;
+		const deltaY = mouseY - resizeStart.mouseY;
+		const delta = Math.max(deltaX, deltaY); // Use the larger of the two for smoother resizing
+
+		const maxSize = Math.min(displayWidth, displayHeight);
+		const newSize = Math.max(CROP_MIN_SIZE, Math.min(resizeStart.size + delta, maxSize));
+
+		// Keep the crop area within bounds when resizing
+		const newX = Math.min(cropArea.x, offsetX + displayWidth - newSize);
+		const newY = Math.min(cropArea.y, offsetY + displayHeight - newSize);
+
+		setCropArea({ x: newX, y: newY, size: newSize });
+	} else if (isDragging) {
+		// Constrain movement within the actual image display area
+		const newX = Math.max(offsetX, Math.min(mouseX - dragStart.x, offsetX + displayWidth - cropArea.size));
+		const newY = Math.max(offsetY, Math.min(mouseY - dragStart.y, offsetY + displayHeight - cropArea.size));
+
+		setCropArea({ ...cropArea, x: newX, y: newY });
 	}
-	
-	const x = ('clientX' in e ? e.clientX : e.touches[0].clientX) - rect.left;
-	const y = ('clientY' in e ? e.clientY : e.touches[0].clientY) - rect.top;
-	
-	// Constrain movement within the actual image display area
-	const newX = Math.max(offsetX, Math.min(x - dragStart.x, offsetX + displayWidth - cropArea.size));
-	const newY = Math.max(offsetY, Math.min(y - dragStart.y, offsetY + displayHeight - cropArea.size));
-	
-	setCropArea({ ...cropArea, x: newX, y: newY });
+}
+
+export function handleResizeStart(
+	e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>,
+	cropMode: boolean,
+	cropArea: { x: number; y: number; size: number },
+	cropContainerRef: RefObject<HTMLDivElement | null>,
+	setIsResizing: (v: boolean) => void,
+	setResizeStart: (v: { size: number; mouseX: number; mouseY: number }) => void,
+) {
+	if (!cropMode) return;
+	e.preventDefault();
+	e.stopPropagation();
+	const rect = cropContainerRef.current?.getBoundingClientRect();
+	if (!rect) return;
+	const mouseX = ('clientX' in e ? e.clientX : e.touches[0].clientX) - rect.left;
+	const mouseY = ('clientY' in e ? e.clientY : e.touches[0].clientY) - rect.top;
+	setIsResizing(true);
+	setResizeStart({ size: cropArea.size, mouseX, mouseY });
 }
 
 export function handleCropEnd(
 	setIsDragging: (v: boolean) => void,
+	setIsResizing: (v: boolean) => void,
 ) {
 	setIsDragging(false);
+	setIsResizing(false);
 }
 
 export function handleCropResize(
@@ -182,25 +235,17 @@ export function handleCropResize(
 ) {
 	const container = cropContainerRef.current;
 	if (!container || !imageDisplayInfo) return;
-	
-	const containerWidth = container.offsetWidth;
-	const containerHeight = container.offsetHeight;
-	const imgAspectRatio = imageDisplayInfo.originalWidth / imageDisplayInfo.originalHeight;
-	const containerAspectRatio = containerWidth / containerHeight;
-	
-	// Calculate the actual image display dimensions (same logic as in applyCrop)
-	let displayWidth: number, displayHeight: number;
-	if (imgAspectRatio > containerAspectRatio) {
-		displayWidth = containerWidth;
-		displayHeight = containerWidth / imgAspectRatio;
-	} else {
-		displayHeight = containerHeight;
-		displayWidth = containerHeight * imgAspectRatio;
-	}
-	
+
+	// Use helper function instead of repeating calculation
+	const { displayWidth, displayHeight } = calculateDisplayDimensions(
+		imageDisplayInfo,
+		container.offsetWidth,
+		container.offsetHeight
+	);
+
 	// The maximum crop size should be the smaller of the display dimensions
 	const maxSize = Math.min(displayWidth, displayHeight);
-	
+
 	const newSize = Math.max(CROP_MIN_SIZE, Math.min(cropArea.size + delta, maxSize));
 	setCropArea({ ...cropArea, size: newSize });
 }
@@ -226,22 +271,13 @@ export function applyCrop(
         canvas.height = CANVAS_SIZE;
 		const container = cropContainerRef.current;
 		if (!container) return;
-		const containerWidth = container.offsetWidth;
-		const containerHeight = container.offsetHeight;
-		const imgAspectRatio = imageDisplayInfo.originalWidth / imageDisplayInfo.originalHeight;
-		const containerAspectRatio = containerWidth / containerHeight;
-		let displayWidth: number, displayHeight: number, offsetX: number, offsetY: number;
-		if (imgAspectRatio > containerAspectRatio) {
-			displayWidth = containerWidth;
-			displayHeight = containerWidth / imgAspectRatio;
-			offsetX = 0;
-			offsetY = (containerHeight - displayHeight) / 2;
-		} else {
-			displayHeight = containerHeight;
-			displayWidth = containerHeight * imgAspectRatio;
-			offsetX = (containerWidth - displayWidth) / 2;
-			offsetY = 0;
-		}
+
+		// Use helper function instead of repeating calculation
+		const { displayWidth, offsetX, offsetY } = calculateDisplayDimensions(
+			imageDisplayInfo,
+			container.offsetWidth,
+			container.offsetHeight
+		);
 		const scale = imageDisplayInfo.originalWidth / displayWidth;
 		const adjustedX = Math.max(0, cropArea.x - offsetX);
 		const adjustedY = Math.max(0, cropArea.y - offsetY);
@@ -326,12 +362,77 @@ export function applyFilterAndStamp(
     return done;
 }
 
+// Helper function to compress and convert to WebP
+async function compressToWebP(canvas: HTMLCanvasElement, maxSize: number = MAX_UPLOAD_SIZE): Promise<Blob> {
+    let quality = WEBP_QUALITY;
+    let blob: Blob | null = null;
+
+    // Try to get WebP blob at target quality
+    blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve as BlobCallback, 'image/webp', quality)
+    );
+
+    if (!blob) {
+        throw new Error('Failed to create WebP image');
+    }
+
+    // If still too large, reduce quality iteratively
+    let attempts = 0;
+    while (blob.size > maxSize && quality > 0.5 && attempts < 5) {
+        quality -= 0.1;
+        attempts++;
+        blob = await new Promise<Blob | null>((resolve) =>
+            canvas.toBlob(resolve as BlobCallback, 'image/webp', quality)
+        );
+        if (!blob) break;
+    }
+
+    return blob!;
+}
+
+// Retry mechanism for upload
+async function uploadWithRetry(
+    fileName: string,
+    blob: Blob,
+    maxRetries: number = 3
+): Promise<{ error: any }> {
+    let lastError: any;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const { error } = await supabase
+                .storage
+                .from('public_album_covers')
+                .upload(fileName, blob, { contentType: 'image/webp', upsert: false });
+
+            if (!error) {
+                return { error: null };
+            }
+
+            lastError = error;
+
+            // If it's a network error, wait before retrying
+            if (attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+            }
+        } catch (err) {
+            lastError = err;
+            if (attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            }
+        }
+    }
+
+    return { error: lastError };
+}
+
 export async function uploadToSupabase(
     croppedImage: string | null,
     addToGallery: (v: string[]) => void,
     setUploading: (v: boolean) => void,
     applyFilterAndStampCb: () => Promise<void> | void,
     canvasRef: RefObject<HTMLCanvasElement | null>,
+    showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void,
     onSuccess?: () => void,
 ) {
     if (!croppedImage) return;
@@ -341,18 +442,26 @@ export async function uploadToSupabase(
     const canvas = canvasRef.current;
     if (!canvas) {
         setUploading(false);
-        alert('Could not access canvas to upload.');
+        showToast('Could not access canvas to upload.', 'error');
         return;
     }
     try {
-        const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve as BlobCallback, 'image/png'));
-        if (!blob) throw new Error('Failed to create image blob');
-        const fileName = `album_${Date.now()}.png`;
-        const { error: uploadError } = await supabase
-            .storage
-            .from('public_album_covers')
-            .upload(fileName, blob, { contentType: 'image/png', upsert: false });
+        // Compress and convert to WebP
+        const blob = await compressToWebP(canvas);
+
+        const originalSize = canvas.toDataURL('image/png').length / 1024; // Approximate KB
+        const compressedSize = blob.size / 1024; // KB
+        const savings = Math.round(((originalSize - compressedSize) / originalSize) * 100);
+
+        console.log(`Compressed from ~${Math.round(originalSize)}KB to ${Math.round(compressedSize)}KB (${savings}% reduction)`);
+
+        const fileName = `album_${Date.now()}.webp`;
+
+        // Upload with retry mechanism
+        const { error: uploadError } = await uploadWithRetry(fileName, blob);
+
         if (uploadError) throw uploadError;
+
         const { data: publicUrlData } = supabase
             .storage
             .from('public_album_covers')
@@ -361,11 +470,16 @@ export async function uploadToSupabase(
         addToGallery([publicUrl]);
         setUploading(false);
         if (onSuccess) onSuccess();
-        alert('Album cover uploaded successfully!');
+        showToast('Album cover uploaded successfully!', 'success');
     } catch (err) {
         console.error(err);
         setUploading(false);
-        alert('Upload failed. Please try again.');
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        if (errorMessage.includes('fetch') || errorMessage.includes('network')) {
+            showToast('Upload failed after retries. Please check your connection.', 'error');
+        } else {
+            showToast('Upload failed. You can still download your cover locally.', 'error');
+        }
     }
 }
 
@@ -376,10 +490,27 @@ export function downloadImage(
 ) {
 	if (!croppedImage) return;
 	Promise.resolve(applyFilterAndStampCb()).then(() => {
-		const link = document.createElement('a');
-		link.download = 'album-cover.png';
-		link.href = canvasRef.current?.toDataURL() || '';
-		link.click();
+		const canvas = canvasRef.current;
+		if (!canvas) return;
+
+		// Try to download as WebP for smaller file size
+		canvas.toBlob((blob) => {
+			if (blob) {
+				const url = URL.createObjectURL(blob);
+				const link = document.createElement('a');
+				link.download = 'album-cover.webp';
+				link.href = url;
+				link.click();
+				// Clean up the URL object
+				setTimeout(() => URL.revokeObjectURL(url), 100);
+			} else {
+				// Fallback to PNG if WebP fails
+				const link = document.createElement('a');
+				link.download = 'album-cover.png';
+				link.href = canvas.toDataURL('image/png');
+				link.click();
+			}
+		}, 'image/webp', WEBP_QUALITY);
 	});
 }
 

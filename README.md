@@ -1,40 +1,40 @@
 # Anything Can Be An Album Cover
 
-A modern, interactive web application that transforms any image into a professional-looking album cover with built-in editing tools, filters, and automatic parental advisory stamping.
+A web app inspired by the social media trend that transforms any image into an album cover aesthetic with a "Parental Advisory" label.
 
-![Album Cover Creator](https://img.shields.io/badge/Status-Live-brightgreen)
-![React](https://img.shields.io/badge/React-18+-blue)
-![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue)
-![Vite](https://img.shields.io/badge/Vite-5+-purple)
+![React](https://img.shields.io/badge/React-19-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue) ![Tailwind](https://img.shields.io/badge/Tailwind-4-blue)
 
-Upload any photo, crop the photo, and add a filter. The stamp is automatically added, and the result is saved to the public gallery.
+## Features
+
+- **Interactive Crop Tool** - Drag-to-resize square crop with real-time preview
+- **7 Filter Presets** - Grayscale, sepia, vintage, cold, warm, high-contrast
+- **Auto Stamp Overlay** - Iconic "Parental Advisory" label automatically positioned
+- **Public Gallery** - Infinite scroll gallery of community-created covers
+- **WebP Compression** - Automatic image optimization (50-70% size reduction)
+- **Offline-Capable** - Works without backend for local downloads
 
 ## Tech Stack
 
-### **Frontend**
-- **React 18**
-- **TypeScript**
-- **Vite**
-- **Tailwind CSS**
-- **Zustand**
-- **FileReader API** - Local file handling
+**Frontend:** React 19, TypeScript, Tailwind CSS 4, Zustand
+**Backend:** Supabase (Storage)
+**Build:** Vite
 
-### **Backend & Storage**
-- **Supabase Storage** - Cloud file storage for images
+## Performance Optimizations
 
-## 📁 Project Structure
+- Memoized event handlers prevent unnecessary re-renders
+- Throttled scroll events (200ms) for smooth infinite scroll
+- Lazy image loading with 200px viewport margin
+- Batch URL generation for gallery items
+- DRY helper functions eliminate repeated calculations
+
+## Project Structure
 
 ```
 src/
 ├── components/
-│   ├── Editor.tsx           # Main editor component with modal
-│   └── editorActions.ts     # Image processing and upload logic
-├── utils/
-│   └── supabase.ts         # Supabase client configuration
-├── App.tsx                 # Main application component
-├── store.ts               # Zustand store definitions
-└── main.tsx              # Application entry point
+│   ├── Editor.tsx          # Modal editor UI
+│   ├── editorActions.ts    # Image processing logic
+│   └── Toast.tsx           # Notification system
+├── store.ts                # Zustand state management
+└── App.tsx                 # Gallery & main layout
 ```
-
-
----

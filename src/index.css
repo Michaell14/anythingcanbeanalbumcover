@@ -2,6 +2,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 @import "tailwindcss";
 
+* {
+  font-family: "Bebas Neue", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
 #app {
   background-color: #121212;
   overflow-x: hidden;
@@ -9,9 +15,3 @@
   min-height: 100vh;
   position: relative;
 }
-
-p, button {
-    font-family: "Bebas Neue", sans-serif;
-    font-weight: 400;
-    font-style: normal;
-  }

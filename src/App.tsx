@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, memo } from 'react';
-import { useGalleryStore } from './store';
+import { useState, useEffect, useCallback, memo, useRef } from 'react';
+import { useGalleryStore, useToastStore } from './store';
 import Editor from './components/Editor';
+import Toast from './components/Toast';
 import supabase from '../utils/supabase';
 
 // Constants
@@ -9,19 +10,19 @@ const SCROLL_THRESHOLD = 1000;
 const GRID_CLASSES = "grid grid-cols-2 md:grid-cols-4 gap-4";
 
 const AlbumCoverCreator = () => {
-  const { 
-    gallery, 
-    addToGallery, 
+  const {
+    gallery,
+    addToGallery,
     resetGallery,
-    offset, 
-    setOffset, 
-    hasMore, 
-    setHasMore, 
-    loading, 
-    setLoading 
+    offset,
+    setOffset,
+    hasMore,
+    setHasMore,
+    loading,
+    setLoading
   } = useGalleryStore();
 
-
+  const { addToast } = useToastStore();
 
   // Load more images function
   const loadMoreImages = useCallback(async () => {
@@ -40,6 +41,9 @@ const AlbumCoverCreator = () => {
 
       if (error) {
         console.error("Error listing images:", error);
+        if (offset === 0) {
+          addToast('Unable to load gallery. You can still create and download covers locally.', 'warning');
+        }
         return;
       }
 
@@ -49,13 +53,16 @@ const AlbumCoverCreator = () => {
       }
 
       // Convert each file to a public URL
-      const urls = data
-        .filter(file =>
-          !file.name.endsWith('/') &&
-          file.name !== '.emptyFolderPlaceholder' &&
-          file.name !== '.emptyFolderPlaceholder/'
-        )
+      const validFiles = data.filter(file =>
+        !file.name.endsWith('/') &&
+        file.name !== '.emptyFolderPlaceholder' &&
+        file.name !== '.emptyFolderPlaceholder/'
+      );
+
+      // Batch URL generation - more efficient than calling getPublicUrl in a loop
+      const urls = validFiles
         .map(file => {
+          // Construct URL directly instead of API call (getPublicUrl doesn't need API)
           const { data: publicUrlData } = supabase
             .storage
             .from("public_album_covers")
@@ -75,33 +82,49 @@ const AlbumCoverCreator = () => {
       }
     } catch (error) {
       console.error("Error loading more images:", error);
+      if (offset === 0) {
+        addToast('Unable to connect to gallery. You can still create and download covers locally.', 'error');
+      }
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
-  }, [loading, hasMore, offset, addToGallery, setOffset, setHasMore, setLoading]);
+  }, [loading, hasMore, offset, addToGallery, setOffset, setHasMore, setLoading, addToast]);
 
   // Load gallery on mount
   useEffect(() => {
     // Reset gallery state and load initial images
     resetGallery();
     loadMoreImages();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
-  // Scroll event handler
+  // Scroll event handler with throttling
   useEffect(() => {
+    let throttleTimeout: number | null = null;
+
     const handleScroll = () => {
-      if (window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - SCROLL_THRESHOLD) {
-        loadMoreImages();
-      }
+      if (throttleTimeout) return;
+
+      throttleTimeout = window.setTimeout(() => {
+        if (window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - SCROLL_THRESHOLD) {
+          loadMoreImages();
+        }
+        throttleTimeout = null;
+      }, 200); // Throttle to once per 200ms
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (throttleTimeout) clearTimeout(throttleTimeout);
+    };
   }, [loadMoreImages]);
 
 
   return (
     <div className="min-h-screen text-white p-8" id="app">
+      <Toast />
       <div className="max-w-7xl mx-auto">
         <div className="my-8 max-w-3xl">
           <p className="text-6xl title text-gray-300">ANYTHING CAN BE AN ALBUM COVER.</p>
@@ -129,7 +152,7 @@ const AlbumCoverCreator = () => {
             <div className={GRID_CLASSES}>
               <Editor />
               {gallery.map((img, index) => (
-                <GalleryImage key={index} src={img} alt={`Album ${index + 1}`} />
+                <GalleryImage key={img} src={img} alt={`Album ${index + 1}`} />
               ))}
             </div>
           )}
@@ -159,6 +182,32 @@ export default AlbumCoverCreator;
 const GalleryImage = memo(({ src, alt }: { src: string; alt: string }) => {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
+  const [inView, setInView] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // Intersection Observer for lazy loading
+  useEffect(() => {
+    if (!imgRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setInView(true);
+            observer.disconnect();
+          }
+        });
+      },
+      {
+        rootMargin: '200px', // Start loading 200px before entering viewport
+        threshold: 0.01
+      }
+    );
+
+    observer.observe(imgRef.current);
+
+    return () => observer.disconnect();
+  }, []);
 
   // Don't render if src is empty, invalid, or if image failed to load
   if (!src || src.trim() === '' || error) {
@@ -172,8 +221,10 @@ const GalleryImage = memo(({ src, alt }: { src: string; alt: string }) => {
         <div className="absolute inset-0 animate-pulse bg-gray-800/50" />
       )}
       <img
-        src={src}
+        ref={imgRef}
+        src={inView ? src : undefined}
         alt={alt}
+        loading="lazy"
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
         className={`w-full h-full object-cover transition-[filter,opacity] duration-500 ${loaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm'}`}
