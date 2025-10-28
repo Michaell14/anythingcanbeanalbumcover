@@ -1,31 +1,33 @@
 # Anything Can Be An Album Cover
 
+## Overview:
 A web app inspired by the social media trend that transforms any image into an album cover aesthetic with a "Parental Advisory" label.
 
-![React](https://img.shields.io/badge/React-19-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue) ![Tailwind](https://img.shields.io/badge/Tailwind-4-blue)
+- **Cropping**: Drag-to-resize square crop with real-time preview
+- **Image Filters**: Grayscale, sepia, vintage, cold, warm, high-contrast
+- **Public Gallery**: Infinite scroll gallery of community-created covers
+- **WebP Compression**: Automatic image optimization (50-70% size reduction)
+- **Offline Capable**: Works without backend for local downloads
 
-## Features
+A two row panel of uploaded images:
 
-- **Interactive Crop Tool** - Drag-to-resize square crop with real-time preview
-- **7 Filter Presets** - Grayscale, sepia, vintage, cold, warm, high-contrast
-- **Auto Stamp Overlay** - Iconic "Parental Advisory" label automatically positioned
-- **Public Gallery** - Infinite scroll gallery of community-created covers
-- **WebP Compression** - Automatic image optimization (50-70% size reduction)
-- **Offline-Capable** - Works without backend for local downloads
+<img width="2570" height="1286" alt="image" src="https://github.com/user-attachments/assets/8983d6fa-12bd-4132-bffe-308da6545cd0" />
+
+
+## Editor
+The upload editor first crops an image, and then applies a filter and stamps it with "parental advisory". Users can then download the image locally or upload it to the public gallery.
+
+Cropping             |  Filtering
+:-------------------------:|:-------------------------:
+![](https://github.com/user-attachments/assets/e812a4cc-5905-4b3a-a77e-8ea9f23a3c6d)  |  ![](https://github.com/user-attachments/assets/1633c8e2-4e99-495d-a939-dcdc67f57a2f)
+
+
 
 ## Tech Stack
 
 **Frontend:** React 19, TypeScript, Tailwind CSS 4, Zustand
 **Backend:** Supabase (Storage)
 **Build:** Vite
-
-## Performance Optimizations
-
-- Memoized event handlers prevent unnecessary re-renders
-- Throttled scroll events (200ms) for smooth infinite scroll
-- Lazy image loading with 200px viewport margin
-- Batch URL generation for gallery items
-- DRY helper functions eliminate repeated calculations
 
 ## Project Structure
 
